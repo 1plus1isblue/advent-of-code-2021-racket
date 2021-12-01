@@ -1,11 +1,5 @@
 #lang racket
-
-;; List<Pair<Integer, Integer>> -> Number
-(define (fn l1 l2 acc)
-  (cond [(empty? l1) acc]
-        [(> (first l1) (first l2)) (fn (rest l1) (rest l2) (add1 acc))]
-        [(<= (first l1) (first l2)) (fn (rest l1) (rest l2) acc)]
-        [else (raise (format "uh oh: ~a, ~a, acc"))]))
+(require "helpers.rkt")
 
 ;; the number of times a depth measurement increases
 ;; 199 (N/A - no previous measurement)
@@ -20,12 +14,11 @@
 ;; 263 (increased)
 (define (solver)
   (define lines (map string->number (port->lines (current-input-port))))
-  (fn lines (cons 0 lines) -1))
+  (count-increases lines))
 
 (with-input-from-file "./input.txt"
                       solver
                       #:mode 'text)
-
 
 
 
