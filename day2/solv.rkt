@@ -1,18 +1,19 @@
 #lang racket
 
 ;; Reads a line and adds to the appropriate count
-;; String (Horizontal Depth) -> (Horizontal Depth)
+;; String (Horizontal Depth Aim) -> (Horizontal Depth Aim)
 (define (parse-line line counts)
   (let* ([words (string-split line)]
          [amt (string->number (second words))]
          [horizontal (first counts)]
-         [depth (second counts)])
+         [depth (second counts)]
+         [aim (third counts)])
 
     (case (string->symbol (first words))
 
-      ['forward `(,(+ horizontal amt) ,depth)]
-      ['down `(,horizontal ,(+ depth amt))]
-      ['up `(,horizontal ,(- depth amt))]
+      ['forward `(,(+ horizontal amt) ,(+ depth (* aim amt)) ,aim)]
+      ['down `(,horizontal ,depth ,(+ aim amt))]
+      ['up `(,horizontal ,depth ,(- aim amt))]
       )))
 
 (define (solver)
