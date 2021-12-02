@@ -39,3 +39,6 @@ Consider sums of a three-measurement sliding window. How many sums are larger th
 3. apply same method from part1
 
 Solution is 1822
+
+Insight to improve
+if number entering is greater than number leaving then it's an increasing. Otherwise, no increase.
