@@ -1,5 +1,5 @@
 #lang racket
-(require "helpers.rkt")
+(require "../../helpers.rkt")
 
 ;; the number of times a depth measurement increases
 ;; 199 (N/A - no previous measurement)
