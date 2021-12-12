@@ -2,6 +2,10 @@ Table
 [ ] - not started
 [I] - in progress
 
+# Problems
+[ ] Day 11
+[ ] Day 12
+
 # Improvements
 
 ## Rewrite day1 part2 to use window. Here's a rough sketch
