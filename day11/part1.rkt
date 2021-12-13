@@ -55,9 +55,10 @@
 
 ;; Moves grid forward 1 and return number of flashes
 ;; Vector<Vector<Number>> -> Integer
-(define (step! grid)
+(define (step! iteration grid)
   (set! width (vector-length (vector-ref grid 0)))
   (set! height (vector-length grid))
+  (define cell-count (* width height))
   ;; increment all cells by 1
   (increment-all-cells! grid)
 
@@ -111,6 +112,10 @@
       val))
   (apply-grid reset-if-greater-than-10 grid)
 
+  (if (= flash-count cell-count)
+    (println (format "everything flashed at step ~a" (add1 iteration)))
+    void)
+
   flash-count
   )
 
@@ -122,9 +127,9 @@
 (define (solver)
   (define current (map-grid (lambda (el) (string->number (string el))) (read-grid (current-input-port))))
   (define original (vector-deep-copy current))
-  (define iterations 100)
+  (define iterations 1000)
   (define flashes (for/sum ([i (in-range iterations)])
-       (step! current)))
+       (step! i current)))
   (print-grid original)
   (println (format "after ~a iterations" iterations))
   (print-grid current)
