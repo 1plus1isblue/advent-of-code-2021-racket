@@ -1,10 +1,16 @@
 Table
 [ ] - not started
 [I] - in progress
+[B] - blocked
+[X] - completed
 
 # Problems
-[ ] Day 11
-[ ] Day 12
+[I] day 13
+[ ] day 14
+[ ] day 15
+[ ] day 16
+[ ] day 17
+[ ] day 18
 
 # Improvements
 
