@@ -1,0 +1,7 @@
+"the-graph: #hash((HN . #<set: end dc kj start>) (LN . #<set: dc>) (dc . #<set: end LN start kj HN>) (end . #<set: dc HN>) (kj . #<set: dc HN sa start>) (sa . #<set: kj>) (start . #<set: dc kj HN>))"
+"#hash((HN . 0) (LN . 0) (dc . 2) (end . 0) (kj . 1) (sa . 0) (start . 1))"
+"#hash((HN . 0) (LN . 0) (dc . 2) (end . 1) (kj . 1) (sa . 0) (start . 1))"
+"#hash((HN . 1) (LN . 0) (dc . 2) (end . 0) (kj . 1) (sa . 0) (start . 1))"
+"#hash((HN . 1) (LN . 0) (dc . 2) (end . 1) (kj . 1) (sa . 0) (start . 1))"
+"#hash((HN . 0) (LN . 1) (dc . 2) (end . 0) (kj . 1) (sa . 0) (start . 1))"
+103

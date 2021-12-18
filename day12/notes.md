@@ -44,3 +44,86 @@ Since there are multiple options to consider at each node we need a way to captu
   ))
 
   ```
+
+# Bug part2: test-input-2.txt gets 151 paths when we expect 103
+approach to solve: print out all paths found and run through verifier.
+
+Solver found 48 bad paths. 151 - 103 = 48. Looks like the bad paths have more  than 1 small node  with 2. Need to add that rule.
+
+```
+"found 48 bad paths"
+'("start" "dc" "kj" "dc" "kj" "HN" "end")
+'("start" "dc" "kj" "HN" "dc" "kj" "HN" "end")
+'("start" "dc" "kj" "HN" "kj" "dc" "end")
+'("start" "dc" "kj" "HN" "kj" "dc" "HN" "end")
+'("start" "dc" "kj" "sa" "kj" "dc" "end")
+'("start" "dc" "kj" "sa" "kj" "dc" "HN" "end")
+'("start" "dc" "HN" "kj" "dc" "kj" "HN" "end")
+'("start" "dc" "HN" "kj" "HN" "dc" "kj" "HN" "end")
+'("start" "dc" "HN" "kj" "HN" "kj" "dc" "end")
+'("start" "dc" "HN" "kj" "HN" "kj" "dc" "HN" "end")
+'("start" "dc" "HN" "kj" "sa" "kj" "dc" "end")
+'("start" "dc" "HN" "kj" "sa" "kj" "dc" "HN" "end")
+'("start" "kj" "dc" "LN" "dc" "kj" "HN" "end")
+'("start" "kj" "dc" "kj" "dc" "end")
+'("start" "kj" "dc" "kj" "dc" "HN" "end")
+'("start" "kj" "dc" "HN" "dc" "kj" "HN" "end")
+'("start" "kj" "dc" "HN" "kj" "dc" "end")
+'("start" "kj" "dc" "HN" "kj" "dc" "HN" "end")
+'("start" "kj" "HN" "dc" "LN" "dc" "kj" "HN" "end")
+'("start" "kj" "HN" "dc" "kj" "dc" "end")
+'("start" "kj" "HN" "dc" "kj" "dc" "HN" "end")
+'("start" "kj" "HN" "dc" "HN" "dc" "kj" "HN" "end")
+'("start" "kj" "HN" "dc" "HN" "kj" "dc" "end")
+'("start" "kj" "HN" "dc" "HN" "kj" "dc" "HN" "end")
+'("start" "HN" "dc" "kj" "dc" "kj" "HN" "end")
+'("start" "HN" "dc" "kj" "HN" "dc" "kj" "HN" "end")
+'("start" "HN" "dc" "kj" "HN" "kj" "dc" "end")
+'("start" "HN" "dc" "kj" "HN" "kj" "dc" "HN" "end")
+'("start" "HN" "dc" "kj" "sa" "kj" "dc" "end")
+'("start" "HN" "dc" "kj" "sa" "kj" "dc" "HN" "end")
+'("start" "HN" "dc" "HN" "kj" "dc" "kj" "HN" "end")
+'("start" "HN" "dc" "HN" "kj" "HN" "dc" "kj" "HN" "end")
+'("start" "HN" "dc" "HN" "kj" "HN" "kj" "dc" "end")
+'("start" "HN" "dc" "HN" "kj" "HN" "kj" "dc" "HN" "end")
+'("start" "HN" "dc" "HN" "kj" "sa" "kj" "dc" "end")
+'("start" "HN" "dc" "HN" "kj" "sa" "kj" "dc" "HN" "end")
+'("start" "HN" "kj" "dc" "LN" "dc" "kj" "HN" "end")
+'("start" "HN" "kj" "dc" "kj" "dc" "end")
+'("start" "HN" "kj" "dc" "kj" "dc" "HN" "end")
+'("start" "HN" "kj" "dc" "HN" "dc" "kj" "HN" "end")
+'("start" "HN" "kj" "dc" "HN" "kj" "dc" "end")
+'("start" "HN" "kj" "dc" "HN" "kj" "dc" "HN" "end")
+'("start" "HN" "kj" "HN" "dc" "LN" "dc" "kj" "HN" "end")
+'("start" "HN" "kj" "HN" "dc" "kj" "dc" "end")
+'("start" "HN" "kj" "HN" "dc" "kj" "dc" "HN" "end")
+'("start" "HN" "kj" "HN" "dc" "HN" "dc" "kj" "HN" "end")
+'("start" "HN" "kj" "HN" "dc" "HN" "kj" "dc" "end")
+'("start" "HN" "kj" "HN" "dc" "HN" "kj" "dc" "HN" "end")
+```
+
+Problem appears in the example
+
+```
+"debug on for (start dc kj dc)"
+"#hash((HN . 0) (LN . 0) (dc . 1) (end . 0) (kj . 1) (sa . 0) (start . 1))"
+"opt 3 for kj with counts #hash((HN . 0) (LN . 0) (dc . 1) (end . 0) (kj . 1) (sa . 0) (start . 1))"
+"valid adjacent for path (start dc kj dc) are #<set: end LN kj HN>"
+"found path (start dc kj dc end)"
+"found path (start dc kj dc kj HN end)"
+```
+
+```
+"found path (start dc kj dc kj HN end)"
+```
+
+visits kj twice. This is a problem. From the debug println's added above we see that the visit count for dc is off-by-one - i.e. Believes dc count is only equal to 1.
+
+The immediate fix is to calculate this everytime. I'm curious where this bug actually gets introduced though. `(dc . 1)` should actually be `(dc . 2)`.
+
+Why isn't it incremented?
+
+The issue was that updated-visit-count comes after valid-adjacent when valid-adjacent assumes the visit-count has already been updated. Imperative assumption killedde
+me at this point.
+
+Long-term solution: be more functional? 

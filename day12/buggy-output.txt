@@ -1,0 +1,3 @@
+These show up when running test-input-1.txt with code. The issue is that b shows up twice.
+start,A,c,A,c,A,b,d,b,A,end <-- wrong
+start,A,c,A,c,A,b,d,b,end <-- wrong

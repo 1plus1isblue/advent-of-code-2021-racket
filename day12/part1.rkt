@@ -2,6 +2,7 @@
 (require "../helpers.rkt")
 
 (define debug-on? #f)
+(define BAD-PATH-PREFIX '("start" "dc" "kj" "dc"))
 
 (define (add-pair graph keypair)
   (define key (car keypair))
@@ -26,10 +27,16 @@
   (andmap char-lower-case? (string->list node-name)))
 
 ;; Map<String,Number> -> Boolean
-(define (node-visited-twice? nodes visit-count)
+(define (node-visited-twice? visit-count)
   (sequence-ormap (lambda (p) (and (is-small? (car p))
                                    (= 2 (cdr p))))
                   (in-hash-pairs visit-count)))
+
+;; Logs if debug-on?
+(define (log-if? str)
+  (if debug-on?
+    (println str)
+    void))
 
 ;; Determines valid adjacent nodes to visit
 ;; Cases per node:
@@ -40,16 +47,21 @@
 ;; * big node -> valid
 ;; Set<String> Map<String, Number> -> Set<String>
 (define (get-valid-adjacent all-adjacent visit-count)
-  (define a-small-node-visited-twice? (node-visited-twice? all-adjacent visit-count))
+  (define a-small-node-visited-twice? (node-visited-twice? visit-count))
   (define valid-adjacent
     (for/set ([neighbor (in-set all-adjacent)])
              (define node-visit-count (hash-ref visit-count neighbor))
              (define small-node? (is-small? neighbor))
              (cond [(string=? "start" neighbor) null]
-                   [(and small-node? a-small-node-visited-twice? (= node-visit-count 0)) neighbor] ;; small nodes can only be visited once
-                   [(and small-node? a-small-node-visited-twice? (> node-visit-count 0)) null] ;; small nodes can only be visited once
-                   [(and small-node? (not a-small-node-visited-twice?) (= node-visit-count 0)) neighbor] ;; small nodes can only be visited once
-                   [(and small-node? (not a-small-node-visited-twice?) (> node-visit-count 0)) neighbor] ;; small nodes can only be visited once
+                   [(and small-node? a-small-node-visited-twice? (= node-visit-count 0)) (begin
+                                                                                           neighbor) ] ;; small nodes can only be visited once
+                   [(and small-node? a-small-node-visited-twice? (> node-visit-count 0))  null] ;; small nodes can only be visited once
+                   [(and small-node? (not a-small-node-visited-twice?) (= node-visit-count 0)) (begin
+
+                                                                                                 neighbor) ] ;; small nodes can only be visited once
+                   [(and small-node? (not a-small-node-visited-twice?) (> node-visit-count 0)) (begin 
+
+                                                                                                 neighbor) ] ;; small nodes can only be visited once
                    [else neighbor]) ;; large node
              ))
   (set-remove valid-adjacent null)) ;; 
@@ -60,12 +72,15 @@
 ;; - Non-end with valid adjacent 
 ;; Node Graph Map<Node, Number> -> Integer
 (define (sum-paths current the-graph visit-count path)
-  (set! debug-on? (equal? (reverse path) '("start" "A" "c" "A" "c" "A" "b" "d")))
-  (define valid-adjacent (get-valid-adjacent (hash-ref the-graph current) visit-count))
-  (define updated-visit-count (hash-set visit-count current (add1 (hash-ref visit-count current))))
+  (set! debug-on? (list-prefix? BAD-PATH-PREFIX (reverse path)))
+
+  ;; Must be done before valid-adjacent
+  (define updated-visit-count (hash-set visit-count current (add1 (hash-ref visit-count current)))) ;; after this counts should sum to path length
+  (define valid-adjacent (get-valid-adjacent (hash-ref the-graph current) updated-visit-count))
   (cond [(and (set-empty? valid-adjacent)
               (not (string=? "end" current))) 0] ;; Cannot continue and not at "end"
-        [(string=? "end" current) 1] ;; reached "end"
+        [(string=? "end" current) (begin
+                                    1)] ;; reached "end"
         [else (begin 
                 (+ (for/sum ([next (in-set valid-adjacent)])
                             (sum-paths next the-graph updated-visit-count (cons next path)))))]))
