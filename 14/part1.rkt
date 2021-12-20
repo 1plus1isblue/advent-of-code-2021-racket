@@ -1,7 +1,10 @@
 #lang racket
 (require "../helpers.rkt"
+         racket/hash
          rackunit
          rackunit/text-ui)
+
+(define ITERS 1)
 
 (define (list->pair l)
   (cons (car l) (car (cdr l))))
@@ -23,7 +26,6 @@
 (define (expand-iters start mapping iters)
   (define current start)
   (for ([i (in-range iters)])
-       (println (format "iteration ~a" i))
        (set! current (expand-polymer current mapping)))
   current)
 
@@ -46,9 +48,9 @@
   (define lines (port->lines (current-input-port)))
   (define start (first lines))
   (define rules (make-hash (map string->rule (drop lines 2))))
-  (define final-string (expand-iters start rules 40))
-  (- (cdr (max-count final-string))
-     (cdr (min-count final-string)))
+  (define final-string (expand-iters start rules ITERS))
+  (println (format "result: ~a" (- (cdr (max-count final-string))
+                                   (cdr (min-count final-string)))))
   )
 
 (setup-and-run solver)
@@ -56,6 +58,8 @@
 (define tests
   (test-suite
     "tests"
+    
+    (test-case "function that returns letter counts")
 
     (test-case "expand single pair inserts in middle"
                (define mapping (make-hash (list (cons "NN" "B"))))
@@ -165,6 +169,16 @@
                (check-equal? (min-count a-string)
                              (cons #\N 1))
                )
+
+    (test-case "merge with hash-union. TODO this can be rewritten away after implementation"
+               (define h1 (make-hash (list (cons "A" 1)
+                                           (cons "B" 3))))
+               (define h2 (make-hash (list (cons "A" 1)
+                                           (cons "C" 4))))
+               (check-match (hash-union (make-immutable-hash (hash->list h1))
+                                         (make-immutable-hash (hash->list h2))
+                                         #:combine/key(lambda (k v1 v2) (+ v1 v2)))
+                             (hash-table ("A" 2) ("B" 3) ("C" 4))))
 
     ;; closes test-suite
     ))
