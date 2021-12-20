@@ -121,3 +121,14 @@
 (define (vector-deep-copy vec)
   (for/vector ([row (in-vector vec)])
               (vector-copy row)))
+
+;; Memoize a function that takes 2 arguments
+(define (memoize-2 fn)
+  (define results-lookup (make-hash))
+  (lambda (a b)
+    (if (hash-has-key? results-lookup `(,a ,b))
+      (hash-ref results-lookup `(,a ,b))
+      (hash-set! results-lookup `(,a ,b) (fn a b)))))
+
+
+
