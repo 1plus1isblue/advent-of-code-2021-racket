@@ -4,8 +4,6 @@
          rackunit
          rackunit/text-ui)
 
-(define ITERS 1)
-
 (define (list->pair l)
   (cons (car l) (car (cdr l))))
 
@@ -33,6 +31,14 @@
 (define (count-letters s)
   (make-immutable-hash (map (lambda (l) (cons (car l) (length l))) (group-by identity (map string (string->list s))))))
 
+;; Find value of largest number in a map
+;; Map<String,Number> -> Number
+(define (max-bucket-count h)
+  (apply max (hash-values h)))
+
+(define (min-bucket-count h)
+  (apply min (hash-values h)))
+
 (define (max-count s)
   (first (sort (hash->list (count-letters s))
         (lambda (kv1 kv2)
@@ -49,23 +55,26 @@
 ;; mapping provides rules for how to expand polymer-pair. Assume that polymer exists
 ;; String Number Mapping -> (String Number . -> .  Map<String, Number>)
 (define (build-letter-count mapping)
+  (define results-lookup (make-hash))
   (define (fn polymer iters)
     (define insertion-letter (hash-ref mapping polymer))
     (define first-letter (substring polymer 0 1))
     (define second-letter (substring polymer 1 2))
-    (cond [(= iters 0) (begin 
+    (cond [(hash-has-key? results-lookup `(,polymer ,iters)) (hash-ref results-lookup `(,polymer ,iters))]
+          [(= iters 0) (begin 
                          (define res (count-letters polymer))
-                         (println (format "base case ~a returning ~a" polymer res))
+                         (hash-set! results-lookup `(,polymer ,iters) res)
                          res)]
           [else (begin 
                   (define left-pair (string-append first-letter insertion-letter))
                   (define right-pair (string-append insertion-letter second-letter))
-                  (println (format "recurse on left ~a and right ~a" left-pair right-pair))
+                  ;(println (format "recurse on left ~a and right ~a" left-pair right-pair))
                   (define temp (hash-union (fn left-pair (sub1 iters))
                                            (fn right-pair (sub1 iters))
                                            #:combine/key (lambda (k v1 v2) (+ v1 v2))))
                   (define result (hash-set temp insertion-letter (sub1 (hash-ref temp insertion-letter))))
-                  (println (format "recursed on left ~a and right ~a with result ~a" left-pair right-pair result))
+                  ;(println (format "recursed on left ~a and right ~a with result ~a" left-pair right-pair result))
+                  (hash-set! results-lookup `(,polymer ,iters) result)
                   result
                   )])
     )
@@ -80,19 +89,21 @@
   (define first-pair (substring start 0 2))
   (define second-pair (substring start 1 3))
   (define third-pair (substring start 2 4))
-  (println first-pair)
-  (println second-pair)
-  (println third-pair)
-  (println start)
 
-  (println (hash-union (the-fn first-pair 0)
-                       (the-fn second-pair 0)
-                       (the-fn third-pair 0)
-              #:combine/key (lambda (k v1 v2) (+ v1 v2))))
+  (define ITERS 40)
 
-  #;
-  (println (format "result: ~a" (- (cdr (max-count final-string))
-                                   (cdr (min-count final-string)))))
+  (define overcounted-total (time (hash-union (the-fn first-pair ITERS)
+                                              (the-fn second-pair ITERS)
+                                              (the-fn third-pair ITERS)
+                                              #:combine/key (lambda (k v1 v2) (+ v1 v2)))))
+
+  (define middle-counts (count-letters (substring start 1 (sub1 (string-length start)))))
+  (define middle-counts-removed (hash-union overcounted-total middle-counts
+                                            #:combine/key (lambda (k v1 v2) (- v1 v2))))
+  (println middle-counts-removed)
+
+  (println (format "result: ~a" (- (max-bucket-count middle-counts-removed)
+                                   (min-bucket-count middle-counts-removed))))
   #t
 
   )
@@ -198,7 +209,7 @@
                (define a-string "CCNC")
                (check-equal? (count-letters a-string)
                              (make-immutable-hash (list (cons "C" 3)
-                                              (cons "N" 1)))))
+                                                        (cons "N" 1)))))
 
     (test-case "get max count letter"
                (define a-string "CCNC")
@@ -243,15 +254,6 @@
                                         #:combine/key(lambda (k v1 v2) (+ v1 v2)))
                             (hash-table ("A" 2) ("B" 3) ("C" 4))))
 
-    #;
-    (test-case "build-letter for more than 2 characters"
-               (define the-fn (build-letter-count (hash "AC" "B" "AB" "C" "BC" "A" "CB" "A" "CA" "B" "BA" "C")))
-               ;; ABC -> ACBBAC
-               (check-match (the-fn "ABC" 1)
-                            (hash-table ("A" 2) ("B" 2) ("C" 2)))
-
-               )
-
     (test-case "hash-union more than 2 hashes"
                (check-match (hash-union (hash "A" 1 "B" 1)
                                         (hash "A" 1 "B" 1)
@@ -260,24 +262,23 @@
                             (hash-table ("A" 2) ("B" 3) ("C" 1))))
 
     (test-case "letter-count for NN with test-input-1.txt should give correct letter count with various iterations"
-               (println "START DEBUG")
                (define rules
                  (make-hash (map string->rule '("CH -> B"
-                   "HH -> N"
-                   "CB -> H"
-                   "NH -> C"
-                   "HB -> C"
-                   "HC -> B"
-                   "HN -> C"
-                   "NN -> C"
-                   "BH -> H"
-                   "NC -> B"
-                   "NB -> B"
-                   "BN -> B"
-                   "BB -> N"
-                   "BC -> B"
-                   "CC -> N"
-                   "CN -> C")))
+                                                "HH -> N"
+                                                "CB -> H"
+                                                "NH -> C"
+                                                "HB -> C"
+                                                "HC -> B"
+                                                "HN -> C"
+                                                "NN -> C"
+                                                "BH -> H"
+                                                "NC -> B"
+                                                "NB -> B"
+                                                "BN -> B"
+                                                "BB -> N"
+                                                "BC -> B"
+                                                "CC -> N"
+                                                "CN -> C")))
                  )
                (define the-fn (build-letter-count rules))
                (check-match (the-fn "NN" 1)
@@ -290,6 +291,18 @@
                             (hash-table ("N" 3) ("B" 3) ("C" 3))
                             )
                )
+
+    (test-case "hash-union when removing redundant counts"
+               (define h1 (hash "A" 1 "B" 2 "C" 3))
+               (define h2 (hash "A" 1 "B" 1))
+               (check-match (hash-union h1 h2
+                                        #:combine/key (lambda (k v1 v2) (- v1 v2)))
+                            (hash-table ("A" 0) ("B" 1) ("C" 3)))
+               )
+    (test-case "get largest bucket size"
+               (define h (hash "A" 1 "B" 2))
+               (check-equal? (max-bucket-count h)
+                             2))
 
     ;; closes test-suite
     ))
