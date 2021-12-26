@@ -53,6 +53,19 @@ and take those counts to get the difference.
 # Outline of solution
 1. dynamic-program to build up counts of table using caching.
 2. do merge of actual input string
-3. calculate highest count
-4. calculate lower count
-5. return difference of highest and lowest count
+3. calculate highest count (same)
+4. calculate lower count (same)
+5. return difference of highest and lowest count (same)
+
+# Problem: overcounting
+Wrote something to dynamically solve for the problem starting from pairs and then passing in each pair. Problem is that the combined results are "off-by-1" meaning that for NNCA and 1 iteration we get back
+
+`#hash(("B" . 2) ("C" . 3) ("H" . 1) ("N" . 3))`
+
+But for the string it expands into NCNBCHB which should have a count of  `#hash((H . 1) (B . 2) (C . 2) (N . 2))`
+
+The C and N have 1 extra count. This can be accounted for by double-counting the middle characters of C and N from the original string since the original pairs inserted overlap. Lets confirm that this is the case as we continue expansion and then try it with some other inputs.
+
+If the hypothesis is not rejected then the hacky fix is is to just remove 1 count for all returning letters for each occurrence in the middle of a letter in the starting line.
+
+Nope. Rejected the hypothesis. Just running base case of the 3 pairs shows the wrong number of N's. The N's count comes back as 2 when we'd expect 3.

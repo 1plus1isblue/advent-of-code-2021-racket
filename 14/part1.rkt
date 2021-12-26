@@ -29,36 +29,78 @@
        (set! current (expand-polymer current mapping)))
   current)
 
+;; String -> List<Pair<Character, Number>>
 (define (count-letters s)
-  (map (lambda (l) (cons (car l) (length l))) (group-by identity (string->list s))))
+  (make-immutable-hash (map (lambda (l) (cons (car l) (length l))) (group-by identity (map string (string->list s))))))
 
 (define (max-count s)
-  (first (sort (count-letters s)
+  (first (sort (hash->list (count-letters s))
         (lambda (kv1 kv2)
           (> (cdr kv1)
              (cdr kv2))))))
 
 (define (min-count s)
-  (first (sort (count-letters s)
+  (first (sort (hash->list (count-letters s))
         (lambda (kv1 kv2)
           (< (cdr kv1)
              (cdr kv2))))))
+
+;; Produces a function that counts letters in resulting string after expanding polymer-pair for _n_ iterations
+;; mapping provides rules for how to expand polymer-pair. Assume that polymer exists
+;; String Number Mapping -> (String Number . -> .  Map<String, Number>)
+(define (build-letter-count mapping)
+  (define (fn polymer iters)
+    (define insertion-letter (hash-ref mapping polymer))
+    (define first-letter (substring polymer 0 1))
+    (define second-letter (substring polymer 1 2))
+    (cond [(= iters 0) (begin 
+                         (define res (count-letters polymer))
+                         (println (format "base case ~a returning ~a" polymer res))
+                         res)]
+          [else (begin 
+                  (define left-pair (string-append first-letter insertion-letter))
+                  (define right-pair (string-append insertion-letter second-letter))
+                  (println (format "recurse on left ~a and right ~a" left-pair right-pair))
+                  (define temp (hash-union (fn left-pair (sub1 iters))
+                                           (fn right-pair (sub1 iters))
+                                           #:combine/key (lambda (k v1 v2) (+ v1 v2))))
+                  (define result (hash-set temp insertion-letter (sub1 (hash-ref temp insertion-letter))))
+                  (println (format "recursed on left ~a and right ~a with result ~a" left-pair right-pair result))
+                  result
+                  )])
+    )
+  fn
+  )
 
 (define (solver)
   (define lines (port->lines (current-input-port)))
   (define start (first lines))
   (define rules (make-hash (map string->rule (drop lines 2))))
-  (define final-string (expand-iters start rules ITERS))
+  (define the-fn (build-letter-count rules))
+  (define first-pair (substring start 0 2))
+  (define second-pair (substring start 1 3))
+  (define third-pair (substring start 2 4))
+  (println first-pair)
+  (println second-pair)
+  (println third-pair)
+  (println start)
+
+  (println (hash-union (the-fn first-pair 0)
+                       (the-fn second-pair 0)
+                       (the-fn third-pair 0)
+              #:combine/key (lambda (k v1 v2) (+ v1 v2))))
+
+  #;
   (println (format "result: ~a" (- (cdr (max-count final-string))
                                    (cdr (min-count final-string)))))
-  )
+  #t
 
-(setup-and-run solver)
+  )
 
 (define tests
   (test-suite
     "tests"
-    
+
     (test-case "function that returns letter counts")
 
     (test-case "expand single pair inserts in middle"
@@ -155,19 +197,40 @@
     (test-case "counts gets mapping of letters to counts"
                (define a-string "CCNC")
                (check-equal? (count-letters a-string)
-                             (list (cons #\C 3)
-                                   (cons #\N 1))))
+                             (make-immutable-hash (list (cons "C" 3)
+                                              (cons "N" 1)))))
 
     (test-case "get max count letter"
                (define a-string "CCNC")
                (check-equal? (max-count a-string)
-                             (cons #\C 3))
+                             (cons "C" 3))
                )
+
+    (test-case "build-letter-count produces a function"
+               (define the-fn (build-letter-count (hash "AC" "B")))
+               (check-equal? (procedure? the-fn) #t))
+
+    (test-case "build-letter-count fn returns count for base case"
+               (define the-fn (build-letter-count (hash "AC" "B")))
+               (check-match (the-fn "AC" 0) (hash-table ("A" 1) ("C" 1)))
+               ) 
+
+    (test-case "build-letter-count fn returns count for base+1 case"
+               (define the-fn (build-letter-count (hash "AC" "B" "AB" "C" "BC" "A")))
+               (check-match (the-fn "AC" 1) (hash-table ("A" 1) ("B" 1) ("C" 1)))
+               )
+
+    (test-case "build-letter-count fn returns count for base+2 case: AC 2 -> ABC 1 -> ACBAC 0"
+               (define the-fn (build-letter-count (hash "AC" "B" "AB" "C" "BC" "A" "CB" "A" "CA" "B" "BA" "C")))
+               (check-match (the-fn "AC" 2) (hash-table ("A" 2) ("B" 1) ("C" 2)))
+               )
+
+
 
     (test-case "get min count letter"
                (define a-string "CCNC")
                (check-equal? (min-count a-string)
-                             (cons #\N 1))
+                             (cons "N" 1))
                )
 
     (test-case "merge with hash-union. TODO this can be rewritten away after implementation"
@@ -176,11 +239,69 @@
                (define h2 (make-hash (list (cons "A" 1)
                                            (cons "C" 4))))
                (check-match (hash-union (make-immutable-hash (hash->list h1))
-                                         (make-immutable-hash (hash->list h2))
-                                         #:combine/key(lambda (k v1 v2) (+ v1 v2)))
-                             (hash-table ("A" 2) ("B" 3) ("C" 4))))
+                                        (make-immutable-hash (hash->list h2))
+                                        #:combine/key(lambda (k v1 v2) (+ v1 v2)))
+                            (hash-table ("A" 2) ("B" 3) ("C" 4))))
+
+    #;
+    (test-case "build-letter for more than 2 characters"
+               (define the-fn (build-letter-count (hash "AC" "B" "AB" "C" "BC" "A" "CB" "A" "CA" "B" "BA" "C")))
+               ;; ABC -> ACBBAC
+               (check-match (the-fn "ABC" 1)
+                            (hash-table ("A" 2) ("B" 2) ("C" 2)))
+
+               )
+
+    (test-case "hash-union more than 2 hashes"
+               (check-match (hash-union (hash "A" 1 "B" 1)
+                                        (hash "A" 1 "B" 1)
+                                        (hash "B" 1 "C" 1)
+                                        #:combine/key (lambda (k v1 v2) (+ v1 v2)))
+                            (hash-table ("A" 2) ("B" 3) ("C" 1))))
+
+    (test-case "letter-count for NN with test-input-1.txt should give correct letter count with various iterations"
+               (println "START DEBUG")
+               (define rules
+                 (make-hash (map string->rule '("CH -> B"
+                   "HH -> N"
+                   "CB -> H"
+                   "NH -> C"
+                   "HB -> C"
+                   "HC -> B"
+                   "HN -> C"
+                   "NN -> C"
+                   "BH -> H"
+                   "NC -> B"
+                   "NB -> B"
+                   "BN -> B"
+                   "BB -> N"
+                   "BC -> B"
+                   "CC -> N"
+                   "CN -> C")))
+                 )
+               (define the-fn (build-letter-count rules))
+               (check-match (the-fn "NN" 1)
+                            (hash-table ("N" 2) ("C" 1)))
+
+               (check-match (the-fn "NN" 2) ;; NN -> NCN -> NBCCN
+                            (hash-table ("N" 2) ("C" 2) ("B" 1)))
+
+               (check-match (the-fn "NN" 3) ;; NBCCN -> NBBBCNCCN
+                            (hash-table ("N" 3) ("B" 3) ("C" 3))
+                            )
+               )
 
     ;; closes test-suite
     ))
 
 (run-tests tests)
+
+(println "Tests passed. Running main program with input")
+
+(setup-and-run solver)
+
+(println (format "step 0 ~a: ~a"  "NNCB" (count-letters "NNCB")))
+(println (format "step 1 ~a: ~a"  "NCNBCHB" (count-letters "NCNBCHB")))
+(println (format "step 2 ~a: ~a"  "NBCCNBBBCBHCB" (count-letters "NBCCNBBBCBHCB")))
+(println (format "step 3 ~a: ~a"  "NBBBCNCCNBBNBNBBCHBHHBCHB" (count-letters "NBBBCNCCNBBNBNBBCHBHHBCHB")))
+(println (format "step 4 ~a: ~a"  "NBBNBNBBCCNBCNCCNBBNBBNBBBNBBNBBCBHCBHHNHCBBCBHCB" (count-letters "NBBNBNBBCCNBCNCCNBBNBBNBBBNBBNBBCBHCBHHNHCBBCBHCB")))
