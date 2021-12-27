@@ -1,3 +1,9 @@
+# Setup
+To run the solver run the code in the following fashion.
+
+`racket part1.rkt <input-file.txt>`
+
+# Notes
 exponential growth :D
 
 0 4 + 3 = 7
