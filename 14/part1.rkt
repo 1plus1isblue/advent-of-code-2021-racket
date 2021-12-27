@@ -51,6 +51,13 @@
           (< (cdr kv1)
              (cdr kv2))))))
 
+;; Splits up a string into a list of pairs
+;; String -> List<String>
+(define (make-letter-pairs s)
+  (for/list ([first-letter (in-string s 0 (sub1 (string-length s)))]
+             [second-letter (in-string s 1)])
+            (string first-letter second-letter)))
+
 ;; Produces a function that counts letters in resulting string after expanding polymer-pair for _n_ iterations
 ;; mapping provides rules for how to expand polymer-pair. Assume that polymer exists
 ;; String Number Mapping -> (String Number . -> .  Map<String, Number>)
@@ -86,16 +93,13 @@
   (define start (first lines))
   (define rules (make-hash (map string->rule (drop lines 2))))
   (define the-fn (build-letter-count rules))
-  (define first-pair (substring start 0 2))
-  (define second-pair (substring start 1 3))
-  (define third-pair (substring start 2 4))
-
+  
+  (define the-pairs (make-letter-pairs start))
   (define ITERS 40)
+  (define overcounted-rooted-at-pairs (map (lambda (p) (the-fn p ITERS)) the-pairs))
 
-  (define overcounted-total (time (hash-union (the-fn first-pair ITERS)
-                                              (the-fn second-pair ITERS)
-                                              (the-fn third-pair ITERS)
-                                              #:combine/key (lambda (k v1 v2) (+ v1 v2)))))
+  (define overcounted-total (time (apply hash-union overcounted-rooted-at-pairs
+                                         #:combine/key (lambda (k v1 v2) (+ v1 v2)))))
 
   (define middle-counts (count-letters (substring start 1 (sub1 (string-length start)))))
   (define middle-counts-removed (hash-union overcounted-total middle-counts
@@ -303,6 +307,11 @@
                (define h (hash "A" 1 "B" 2))
                (check-equal? (max-bucket-count h)
                              2))
+
+    (test-case "letter-pairs splits up ABCDE into AB BC CD DE"
+               (check-match (make-letter-pairs "ABCDE")
+                            (list "AB" "BC" "CD" "DE"))
+               )
 
     ;; closes test-suite
     ))
