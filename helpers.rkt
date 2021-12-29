@@ -13,9 +13,12 @@
          make-posn
          posn-x
          posn-y
+         cell-value
          vector-deep-copy
          memoize-1
          memoize-2
+         grid-print 
+         has-ref?
          )
 
 (define-struct posn (x y) #:transparent)
@@ -123,6 +126,14 @@
     (raise (format "~a ~a is invalid location in grid" x y)))
   )
 
+;; Says whether or not a location is valid
+;; Integer Integer Vector<Vector<Any>> -> Boolean
+(define (has-ref? x y grid)
+  (define width (vector-length (vector-ref grid 0)))
+  (define height (vector-length grid))
+  (and (<= 0 x (sub1 width))
+       (<= 0 y (sub1 height))))
+
 ;; Set cell at location in grid
 ;; TODO test
 ;; Integer Integer Vector<Vector<Any>> Any -> Void
@@ -155,3 +166,11 @@
 			(unless (hash-has-key? lookup `(,x ,y))
 				(hash-set! lookup `(,x ,y) (f x y)))
 			(hash-ref lookup `(,x ,y)))))
+
+;; Vec<Vec<Any>>
+(define (grid-print grid)
+  (for ([row (in-vector grid)])
+       (for ([cell (in-vector row)])
+            (display cell))
+       (display "\n")
+       (flush-output)))
