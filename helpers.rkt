@@ -6,15 +6,16 @@
          map-grid
          coordinate-ref
          grid-ref
+         grid-set!
          apply-grid
          apply-grid-subset
          grid-to-coordinates
          make-posn
          posn-x
          posn-y
-         cell-pos
-         cell-value
          vector-deep-copy
+         memoize-1
+         memoize-2
          )
 
 (define-struct posn (x y) #:transparent)
@@ -93,10 +94,15 @@
 
 ;; Boilerplate for setting up and running solvers
 (define (setup-and-run solver)
-  (define filename (vector-ref (current-command-line-arguments) 0))
-  (with-input-from-file filename 
-                      solver
-                      #:mode 'text))
+  (define cmd-args (current-command-line-arguments))
+  (if (= (vector-length cmd-args) 0)
+    (begin (println "No filename passed to program. Exiting")
+           (exit))
+    (with-input-from-file (vector-ref cmd-args 0)
+                          solver
+                          #:mode 'text)
+    )
+  )
 
 
 ;; Access value in grid at coordinate
@@ -117,7 +123,35 @@
     (raise (format "~a ~a is invalid location in grid" x y)))
   )
 
+;; Set cell at location in grid
+;; TODO test
+;; Integer Integer Vector<Vector<Any>> Any -> Void
+(define (grid-set! x y grid value)
+  (vector-set! (vector-ref grid y) x value))
+
 ;; Copies a 2d vector
 (define (vector-deep-copy vec)
   (for/vector ([row (in-vector vec)])
               (vector-copy row)))
+
+
+;; Must be used with (set! f (memoize-1 f)) in the calling site
+;; TODO replace with a macro.
+;; See https://stackoverflow.com/a/66304604 for more info
+(define (memoize-1 f)
+	(let ((lookup (make-hash)))
+		(lambda (x)
+			(unless (hash-has-key? lookup x)
+				(hash-set! lookup x (f x)))
+			(hash-ref lookup x))))
+
+
+;; Must be used with (set! f (memoize-1 f)) in the calling site
+;; TODO replace with a macro.
+;; See https://stackoverflow.com/a/66304604 for more info
+(define (memoize-2 f)
+	(let ((lookup (make-hash)))
+		(lambda (x y)
+			(unless (hash-has-key? lookup `(,x ,y))
+				(hash-set! lookup `(,x ,y) (f x y)))
+			(hash-ref lookup `(,x ,y)))))
