@@ -12,7 +12,7 @@ Goal is to sum up all version numbers in all packets in the hierarchy. I don't a
 `
 
 # TODOs
-* [ ] read literal outputs struct
+* [I] read literal outputs struct
 * [ ] convert examples into tests that output sum of version numbers
   * [ ] test for embedded packets
   * [ ] test for recursively embedded packets?
