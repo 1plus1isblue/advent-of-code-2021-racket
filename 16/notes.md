@@ -10,10 +10,17 @@ Goal is to sum up all version numbers in all packets in the hierarchy. I don't a
 `
 > racket part1-tests.rkt
 `
+# Legend
+X - done
+I - in progress
+_ - todo
+P - paused
+S - skipped
 
 # TODOs
 * [X] read literal outputs struct
-* [I] test for embedded packets
+* [X] string->packge should take start position
+* [P] test for embedded packets
 * [ ] test for recursively embedded packets?
 * [ ] test for very long literal
 
