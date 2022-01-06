@@ -22,6 +22,17 @@
                 [subpackets : (Listof Packet)])
                 #:transparent)
 
+;; Intervals represented in start-end range is [inclusive,exclusive)
+(define VERSION-START 0)
+(define VERSION-END (+ VERSION-START 3))
+(define PACKET-TYPE-START 3)
+(define PACKET-TYPE-END (+ PACKET-TYPE-START 3))
+(define LENGTH-ID-START 6)
+(define LENGTH-ID-END (+ LENGTH-ID-START 1))
+(define LENGTH-START 7)
+(define LENGTH-END (+ LENGTH-START 15))
+(define LENGTH-ID-0-START 22)
+
 (define (hex-to-binary s)
   (hash-ref (hash "0" "0000"
                   "1" "0001"
@@ -53,17 +64,59 @@
   (do ([offset value-start (+ GROUP-SIZE offset)])
     ((last-group? s offset) (+ offset OFFSET-FROM-START-OF-LAST-BLOCK))))
 
-(: hex-string->packet (-> HexString Integer (Struct LiteralPacket)))
+(: hex-string->packet (-> HexString Integer (Struct Packet)))
 (define (hex-string->packet hex-s start-index) 
   (let ([binary-form : BinaryString (hex-string->binary-string hex-s)])
     (binary-string->packet binary-form start-index)))
 
-(: binary-string->packet (-> BinaryString Integer (Struct LiteralPacket)))
+(: binary-string->packet (-> BinaryString Integer (Struct Packet)))
 (define (binary-string->packet [s : BinaryString] [start-index : Integer])
-  (let ([version : Number (or-fail (string->number (binary-ref-most-sig s 0 3) 2))]
-        [type : Number (or-fail (string->number (binary-ref-most-sig s 3 6) 2))])
+  (let ([version : Integer (extract-integer s VERSION-START VERSION-END)]
+        [type : Integer (extract-integer s PACKET-TYPE-START PACKET-TYPE-END)])
     (cond [(= type 4) (make-LiteralPacket version type 0 (get-last-bit-index s 6))]
-          [else (error "Not implemented")])))
+          [else (binary-operator-string->packet s start-index)])))
+
+;; Extracts an integer from a subsection of a BinaryString starting from the
+;; left. For example, "1001101" 3 5, gets the middle "11" which is 3. `end`
+;; is exclusive on the interval selected.
+(: extract-integer (-> BinaryString Integer Integer Integer))
+(define (extract-integer [s : BinaryString] [start : Integer] [end : Integer])
+  (is-exact-integer? (or-fail (string->number (binary-ref-most-sig s start end) 2))))
+
+;; Creatse a list of subpackets when lenght-ID == 0
+(: subpackets-length-ID-0 (-> BinaryString Integer Integer (Listof Packet)))
+(define (subpackets-length-ID-0 [s : BinaryString] [start : Integer] [end : Integer])
+  ;; while last bit of last packet returned does not equal end run loop that
+  ;; parses set of bits starting from new offset at end of previous result +1
+  '())
+
+;; Verifies a number is an exact integer.
+(: is-exact-integer? (-> Number Integer))
+(define (is-exact-integer? i)
+  (cond [(exact-integer? i) i]
+        [else (error (format "~a is not an exact integer" i))]))
+
+(: binary-operator-string->packet (-> BinaryString Integer (Struct Packet)))
+(define (binary-operator-string->packet [s : BinaryString] [start : Integer])
+  (let* ([extract (curry extract-integer s)]
+         [at (lambda ([b : Integer]) (+ start b))]
+         [version : Number (extract (at VERSION-START) 
+                                    (at VERSION-END))]
+         [type : Number (extract (at PACKET-TYPE-START)
+                                 (at PACKET-TYPE-END))]
+         [length-ID : Number (extract (at LENGTH-ID-START)
+                                      (at LENGTH-ID-END))])
+    (cond [(= length-ID 0)
+           (make-OperatorPacket version
+                                type 
+                                length-ID 
+                                (extract (at LENGTH-START)
+                                         (at LENGTH-END))
+                                (subpackets-length-ID-0 s 
+                                                        (at LENGTH-ID-0-START)
+                                                        (extract (at LENGTH-START)
+                                                                 (at LENGTH-END))))]
+          [else (error (format "length-ID ~a not implemented" length-ID))])))
 
 ;; Converts a string representation of a hex to a binary representation of it.
 ;; Example "BD" -> "10111101"
@@ -88,9 +141,8 @@
 
 (define (the-tests) 
   (begin
-    #;
     (test-case "38006F45291200, an operator packet with 2 literal subpackets reads length when lenght-ID is 0"
-               (check-equal? (hex-string->packet "38006F45291200")
+               (check-equal? (hex-string->packet "38006F45291200" 0)
                              (make-OperatorPacket 1 6 0 27 (list (make-LiteralPacket 6 4 0 0)
                                                                  (make-LiteralPacket 2 4 0 0)))))
 
