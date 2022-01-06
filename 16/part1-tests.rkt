@@ -19,7 +19,7 @@
 (define-struct (OperatorPacket Packet)
                ([length-type : Number]
                 [sub-length : Number]
-                [subpackets : (Listof Packet)]
+                [subpackets : (Listof Packet)])
                 #:transparent)
 
 (define (hex-to-binary s)
