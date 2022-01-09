@@ -8,12 +8,12 @@
 (define-type Index Integer)
 
 (define-struct Packet ([version : Number]
-                       [type : Number])
+                       [type : Number]
+                       [last-bit-pos : Number])
                        #:transparent)
 
 (define-struct (LiteralPacket Packet)
-               ([value : Number]
-                [last-bit-pos : Index])
+               ([value : Number])
                #:transparent)
 
 (define-struct (OperatorPacket Packet)
@@ -83,7 +83,7 @@
 (define (extract-integer [s : BinaryString] [start : Integer] [end : Integer])
   (is-exact-integer? (or-fail (string->number (binary-ref-most-sig s start end) 2))))
 
-;; Creatse a list of subpackets when lenght-ID == 0
+;; Creatse a list of subpackets when length-ID == 0
 (: subpackets-length-ID-0 (-> BinaryString Integer Integer (Listof Packet)))
 (define (subpackets-length-ID-0 [s : BinaryString] [start : Integer] [end : Integer])
   ;; while last bit of last packet returned does not equal end run loop that
@@ -109,6 +109,7 @@
     (cond [(= length-ID 0)
            (make-OperatorPacket version
                                 type 
+                                0 ;; TODO last-bit-pos
                                 length-ID 
                                 (extract (at LENGTH-START)
                                          (at LENGTH-END))
@@ -143,8 +144,8 @@
   (begin
     (test-case "38006F45291200, an operator packet with 2 literal subpackets reads length when lenght-ID is 0"
                (check-equal? (hex-string->packet "38006F45291200" 0)
-                             (make-OperatorPacket 1 6 0 27 (list (make-LiteralPacket 6 4 0 0)
-                                                                 (make-LiteralPacket 2 4 0 0)))))
+                             (make-OperatorPacket 1 6 48 0 27 (list (make-LiteralPacket 6 4 32 0)
+                                                                 (make-LiteralPacket 2 4 48 0)))))
 
     (test-case "get index of last bit in literal b#10111_11110_00101_000 -> 14 using 0-based position"
                (check-equal? (get-last-bit-index "101111111000101000" 0)
