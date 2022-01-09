@@ -69,3 +69,9 @@ The BITS transmission contains a single packet at its outermost layer which itse
 ```
 
 I'm going to go ahead with this assumption that it's only an issue at the top-level and that everything contained doesn't contain wasted space.
+
+# Debugging - tries at multiples of 22 until going too far and reaching end-of-index issue
+It looks like the first call is from 22 to 27. This really should be 22 to 49. Don't forget the end is exclusive so last bit considered is 48.
+It looks like the first issue is that the end is only +5 when we're expecting 27 - meaning it should consider from
+
+Fixed the issue.
