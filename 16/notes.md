@@ -20,9 +20,10 @@ S - skipped
 # TODOs
 * [X] read literal outputs struct
 * [X] string->packge should take start position
-* [P] test for embedded packets
-* [ ] test for recursively embedded packets?
-* [ ] test for very long literal
+* [X] test for embedded packets
+* [X] test for recursively embedded packets?
+* [X] test for very long literal
+* [I] remaining tests from advent examples
 
 # Thoughts on Parsing
 Know that after coming back from recursing on a sub-section we should know how far this package goes.
@@ -75,3 +76,6 @@ It looks like the first call is from 22 to 27. This really should be 22 to 49. D
 It looks like the first issue is that the end is only +5 when we're expecting 27 - meaning it should consider from
 
 Fixed the issue.
+
+# Debugging - not seeing length-ID 1 path taken
+It was because I precalculated subpackets in the let statement. Procedural assumptions bit my but again. The issue was fixed by moving the subpacket reading into the next section. This really should be it's own function to "clean things up". I'm kind of grossed out by the number of function calls.

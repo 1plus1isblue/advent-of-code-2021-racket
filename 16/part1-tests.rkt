@@ -30,8 +30,10 @@
 (define LENGTH-ID-START 6)
 (define LENGTH-ID-END (+ LENGTH-ID-START 1))
 (define LENGTH-START 7)
-(define LENGTH-END (+ LENGTH-START 15))
+(define LENGTH-END-ID-0 (+ LENGTH-START 15))
+(define LENGTH-END-ID-1 (+ LENGTH-START 11))
 (define LENGTH-ID-0-START 22)
+(define LENGTH-ID-1-START 18)
 (define LITERAL-VALUE-START 6)
 
 (define (hex-to-binary s)
@@ -65,10 +67,10 @@
   (do ([offset value-start (+ GROUP-SIZE offset)])
     ((last-group? s offset) (+ offset OFFSET-FROM-START-OF-LAST-BLOCK))))
 
-(: hex-string->packet (-> HexString Integer Packet))
-(define (hex-string->packet hex-s start-index) 
+(: hex-string->packet (-> HexString Packet))
+(define (hex-string->packet hex-s) 
   (let ([binary-form : BinaryString (hex-string->binary-string hex-s)])
-    (binary-string->packet binary-form start-index)))
+    (binary-string->packet binary-form 0)))
 
 (: binary-string->packet (-> BinaryString Integer Packet))
 (define (binary-string->packet [s : BinaryString] [start-index : Integer])
@@ -79,12 +81,12 @@
          [type-start (at PACKET-TYPE-START)]
          [type-end (at PACKET-TYPE-END)]
          [type : Integer (extract-integer s type-start type-end)])
-    (cond [(= type 4) (begin (define res (make-LiteralPacket version type (get-last-bit-index s (at LITERAL-VALUE-START)) 0))
+    (cond [(= type 4) (begin 
+                        (define res (make-LiteralPacket version type (get-last-bit-index s (at LITERAL-VALUE-START)) 0))
                              res)]
           [else (begin 
                   (define res (binary-operator-string->packet s start-index))
-                  res
-                  )])))
+                  res)])))
 
 ;; Extracts an integer from a subsection of a BinaryString starting from the
 ;; left. For example, "1001101" 3 5, gets the middle "11" which is 3. `end`
@@ -100,10 +102,16 @@
   ;; bit following last bit is starting of next sub-packet
   (do ([current start (add1 (Packet-last-bit-pos (car subpackets)))])
     ((>= current end) (reverse subpackets))
-    (set! subpackets (cons (binary-string->packet s current) subpackets))
-    ;; while last bit of last packet returned does not equal end run loop that
-    ;; parses set of bits starting from new offset at end of previous result +1
-    ))
+    (set! subpackets (cons (binary-string->packet s current) subpackets))))
+
+(: subpackets-length-ID-1 (-> BinaryString Integer Integer (Listof Packet)))
+(define (subpackets-length-ID-1 [s : BinaryString] [start : Integer] [target-packet-count : Integer])
+  (define subpackets : (Listof Packet) '())
+  (do ([subpacket-start start (add1 (Packet-last-bit-pos (car subpackets)))])
+    ((>= (length subpackets) target-packet-count) (reverse subpackets))
+    (set! subpackets (cons (binary-string->packet s subpacket-start) subpackets))
+    )
+  )
 
 ;; Verifies a number is an exact integer.
 (: is-exact-integer? (-> Number Integer))
@@ -120,21 +128,35 @@
          [type : Number (extract (at PACKET-TYPE-START)
                                  (at PACKET-TYPE-END))]
          [length-ID : Number (extract (at LENGTH-ID-START)
-                                      (at LENGTH-ID-END))]
-         [subpacket-start : Integer (at LENGTH-ID-0-START)]
-         [subpacket-length : Integer (extract (at LENGTH-START)
-                                              (at LENGTH-END))]
-         [subpackets (subpackets-length-ID-0 s 
-                                             subpacket-start
-                                             (+ subpacket-start subpacket-length))])
+                                      (at LENGTH-ID-END))])
     (cond [(= length-ID 0)
-           (make-OperatorPacket version
-                                type 
-                                (Packet-last-bit-pos (last subpackets)) 
-                                length-ID 
-                                subpacket-length
-                                subpackets
-                                )]
+           (begin 
+                  (define subpacket-start : Integer (at LENGTH-ID-0-START))
+                  (define subpacket-length : Integer (extract (at LENGTH-START)
+                                                              (at LENGTH-END-ID-0)))
+                  (define subpackets : (Listof Packet) (subpackets-length-ID-0 s 
+                                                                               subpacket-start
+                                                                               (+ subpacket-start subpacket-length)))
+                  (make-OperatorPacket version
+                                       type 
+                                       (Packet-last-bit-pos (last subpackets)) 
+                                       length-ID 
+                                       subpacket-length
+                                       subpackets))]
+          [(= length-ID 1) (begin 
+                  (define subpacket-start : Integer (at LENGTH-ID-1-START))
+                  (define number-subpackets : Integer (extract (at LENGTH-START)
+                                                              (at LENGTH-END-ID-1)))
+                  (define subpackets : (Listof Packet) (subpackets-length-ID-1 s
+                                                                               subpacket-start
+                                                                               number-subpackets))
+                  (make-OperatorPacket version
+                                       type
+                                       (Packet-last-bit-pos (last subpackets))
+                                       length-ID
+                                       number-subpackets
+                                       subpackets)
+                                  )]
           [else (error (format "length-ID ~a not implemented" length-ID))])))
 
 ;; Converts a string representation of a hex to a binary representation of it.
@@ -161,13 +183,35 @@
 
 (define (the-tests) 
   (begin
-    (test-case "38006F45291200, an operator packet with 2 literal subpackets reads length when lenght-ID is 0"
+    (test-case "subpackets-length-ID-1 parses 3 subpackets when starting from index 0"
+               ;; 0101000000110010000010001100000110
+               ;; AAAAAAAAAAABBBBBBBBBBBCCCCCCCCCCC               
+               (check-equal? (subpackets-length-ID-1 "0101000000110010000010001100000110" 0 3)
+                             (list (make-LiteralPacket 2 4 10 0)
+                                   (make-LiteralPacket 4 4 21 0)
+                                   (make-LiteralPacket 1 4 32 0)))
+
+)
+    (test-case "EE00D40C823060, operator packet with 3 literal subpackets and length-ID == 1"
+               ;; 11101110000000001101010000001100100000100011000001100000
+               ;; VVVTTTILLLLLLLLLLLAAAAAAAAAAABBBBBBBBBBBCCCCCCCCCCC
+               ;; A starts at 18
+               ;; B starts at 29 
+               ;; C starts at 40
+               ;; top-level ends at 50
+               (check-equal? (hex-string->packet "EE00D40C823060")
+                             (make-OperatorPacket 7 3 50 1 3 (list (make-LiteralPacket 2 4 28 0)
+                                                                   (make-LiteralPacket 4 4 39 0)
+                                                                   (make-LiteralPacket 1 4 50 0))))
+               )
+
+    (test-case "38006F45291200, an operator packet with 2 literal subpackets reads length when length-ID is 0"
                ;; Packet
                ;; 00111000000000000110111101000101001010010001001000000000
                ;; VVVTTTILLLLLLLLLLLLLLLAAAAAAAAAAABBBBBBBBBBBBBBBB
                ;; A starts at 22
                ;; B starts at 33
-               (check-equal? (hex-string->packet "38006F45291200" 0)
+               (check-equal? (hex-string->packet "38006F45291200")
                              (make-OperatorPacket 1 6 48 0 27 (list (make-LiteralPacket 6 4 32 0)
                                                                  (make-LiteralPacket 2 4 48 0))))
 
@@ -179,7 +223,7 @@
                              14))
 
     (test-case "D2FE28 -> to packet"
-               (check-equal? (hex-string->packet "D2FE28" 0)
+               (check-equal? (hex-string->packet "D2FE28")
                              (make-LiteralPacket 6 4 20 0)))
 
     (test-case "or-fail throws away False in union type of string->number - i.e. (U Complex False)"
