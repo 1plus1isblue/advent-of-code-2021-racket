@@ -181,17 +181,65 @@
   (cond [(complex? result) result]
         [(false? result) (error "Received false when number was expected")]))
 
+
+(: sum-versions (-> Packet Number))
+(define (sum-versions packet)
+  (cond [(OperatorPacket? packet) (+ (Packet-version packet)
+                                     (for/sum : Number ([subpacket : Packet (in-list (OperatorPacket-subpackets packet))])
+                                              (sum-versions subpacket)))]
+        [else (Packet-version packet)]))
+
+(: sum-versions-from-hex (-> HexString Number))
+(define (sum-versions-from-hex hex-string)
+  (sum-versions (hex-string->packet hex-string)))
+
 (define (the-tests) 
   (begin
+
+    (test-case "sum-version-from-hex: 8A004A801A8002F478"
+               (check-equal? (sum-versions-from-hex "8A004A801A8002F478")
+                             16))
+    
+    (test-case "sum-version-from-hex: 620080001611562C8802118E34"
+               (check-equal? (sum-versions-from-hex "620080001611562C8802118E34")
+                             12))
+
+    (test-case "sum-versions-from-hex: C0015000016115A2E0802F182340"
+               (check-equal? (sum-versions-from-hex "C0015000016115A2E0802F182340")
+                             23))
+
+    (test-case "sum-versions-from-hex: A0016C880162017C3686B18A3D4780"
+               (check-equal? (sum-versions-from-hex "A0016C880162017C3686B18A3D4780")
+                             31))
+    
+    (test-case "sum-version-from-hex"
+               (check-equal? (sum-versions-from-hex "38006F45291200")
+                             (+ 1 6 2)))
+    
+    (test-case  "sum-versions for an operator with multiple packets sums all versions"
+               (define in (make-OperatorPacket 7 0 0 0 0 (list (make-LiteralPacket 2 0 0 0)
+                                                               (make-LiteralPacket 4 0 0 0)
+                                                               (make-LiteralPacket 1 0 0 0))))
+               (check-equal? (sum-versions in)
+                             (+ 7 2 4 1)))
+
+    (test-case "sum-versions for a literal returns that version number"
+               (define in (make-LiteralPacket 7 0 0 0))
+               (check-equal? (sum-versions in)
+                             7))
+    (test-case "sum-versions for a hierarchy sums all versions"
+               (define in (make-OperatorPacket 1 0 0 0 0 (list (make-OperatorPacket 2 0 0 0 0 '()))))
+               (check-equal? (sum-versions in)
+                             3))
+
     (test-case "subpackets-length-ID-1 parses 3 subpackets when starting from index 0"
                ;; 0101000000110010000010001100000110
                ;; AAAAAAAAAAABBBBBBBBBBBCCCCCCCCCCC               
                (check-equal? (subpackets-length-ID-1 "0101000000110010000010001100000110" 0 3)
                              (list (make-LiteralPacket 2 4 10 0)
                                    (make-LiteralPacket 4 4 21 0)
-                                   (make-LiteralPacket 1 4 32 0)))
+                                   (make-LiteralPacket 1 4 32 0))))
 
-)
     (test-case "EE00D40C823060, operator packet with 3 literal subpackets and length-ID == 1"
                ;; 11101110000000001101010000001100100000100011000001100000
                ;; VVVTTTILLLLLLLLLLLAAAAAAAAAAABBBBBBBBBBBCCCCCCCCCCC

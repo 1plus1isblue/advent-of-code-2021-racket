@@ -23,7 +23,8 @@ S - skipped
 * [X] test for embedded packets
 * [X] test for recursively embedded packets?
 * [X] test for very long literal
-* [I] remaining tests from advent examples
+* [X] remaining tests from advent examples
+* [I] read input and run
 
 # Thoughts on Parsing
 Know that after coming back from recursing on a sub-section we should know how far this package goes.
