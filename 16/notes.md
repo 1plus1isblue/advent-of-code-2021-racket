@@ -24,7 +24,10 @@ S - skipped
 * [X] test for recursively embedded packets?
 * [X] test for very long literal
 * [X] remaining tests from advent examples
-* [I] read input and run
+* [X] read input and run
+* [X] turn packet into datum
+* [ ] eval datum
+* [ ] read input and run
 
 # Thoughts on Parsing
 Know that after coming back from recursing on a sub-section we should know how far this package goes.
