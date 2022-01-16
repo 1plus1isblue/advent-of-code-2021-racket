@@ -26,6 +26,7 @@ S - skipped
 * [X] remaining tests from advent examples
 * [X] read input and run
 * [X] turn packet into datum
+* [ ] add day 2 tests
 * [ ] eval datum
 * [ ] read input and run
 

@@ -251,6 +251,10 @@
         [(and (OperatorPacket? p) (symbol=? op '=)) `(if (= ,@(subpackets->ast (OperatorPacket-subpackets p))) 1 0)]
         [else (error (format "op ~a not implemented" op))]))
 
+(: hex-string->ast (-> HexString Any))
+(define (hex-string->ast [s : HexString])
+  (packet->ast (hex-string->packet s)))
+
 (define (the-tests) 
   (begin
 
@@ -433,6 +437,15 @@
                (check-equal? (hex-string->binary-string "0123456789ABCDEF")
                              expected))
 
+    (test-case "C200B40A82 with hex-string->ast"
+               (check-equal? (hex-string->ast "C200B40A82")
+                             '(+ 1 2)))
+
+    (test-case "04005AC33890 -> 54"
+               (check-equal? (hex-string->ast "04005AC33890")
+                             '(* 6 9)))
+
+
     ;; closes test-suite
     )) 
 
@@ -440,7 +453,9 @@
 
 (define (solver)
   (define hex-string (car (port->lines (current-input-port))))
-  (println (format "sum of versions: ~a" (sum-versions-from-hex hex-string)))
+  (define root-packet (hex-string->packet hex-string))
+  (define ast (packet->ast root-packet))
+  (println ast)
   #f
   )
 
